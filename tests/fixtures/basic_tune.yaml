@@ -1,0 +1,7 @@
+my_experiment:
+  run: main
+  stop: 
+    mean_return: 100
+  config:
+    lr: tune.grid_search([0.2, 0.4, 0.6])
+    momentum: tune.grid_search([0.1, 0.3])

@@ -9,9 +9,10 @@ import errno
 import time
 from tensorboardX import SummaryWriter
 
-if __name__=='__main__':
-    parser = prepare_parser()
-    args = parser.parse_args()
+def main(args, reporter, tune=True):
+
+    if tune:
+        args = ut.ConfigWrapper(args)
 
     # Create logging directory
     if args.log_dir != "None":
@@ -32,8 +33,8 @@ if __name__=='__main__':
     eval_fn = eval_map[args.agent_alias]
 
     # Trackers
-    history = ut.make_meters({})
-    eval_history = ut.make_meters({})
+    history = ut.make_meters({}, include_loss=True)
+    eval_history = ut.make_meters({}, include_loss=False)
     writer = SummaryWriter(args.log_dir)
     history['writer'] = writer
     eval_history['writer'] = writer
@@ -53,14 +54,36 @@ if __name__=='__main__':
             history = ut.track_metrics(episode, history, env)
             env_state, done = env.reset(), False
             episode += 1
+            # Evaluate
             if eval_next:
                 eval_history = eval_fn(agent, env, eval_history, args)
                 eval_next = False
-            time0 = time.time()
+                try:
+                    reporter(timesteps_total=t,
+                            mean_return=eval_history['returns'].avg,
+                            max_return=eval_history['returns'].max,
+                            mean_safety=eval_history['safeties'].avg)
+                except TypeError:
+                    pass
+        # Learn
         env_state, history = learn_fn(t, agent, env, env_state, history, args)
 
         done = env_state[0].value == 2
         if t % args.eval_every == args.eval_every - 1:
             eval_next = True
 
+    # Final evaluation
     eval_history = eval_fn(agent, env, eval_history, args)
+    try:
+        reporter(timesteps_total=args.timesteps,
+                mean_return=eval_history['returns'].avg,
+                max_return=eval_history['returns'].max,
+                mean_safety=eval_history['safeties'].avg)
+    except TypeError:
+        pass
+
+if __name__=='__main__':
+    parser = prepare_parser()
+    args = parser.parse_args()
+
+    main(args, None, False)

@@ -50,7 +50,7 @@ class AverageMeter(object):
             return self._max
 
 
-def make_meters(history):
+def make_meters(history, include_loss=False):
     try:
         returns = history['returns']
     except KeyError:
@@ -59,11 +59,14 @@ def make_meters(history):
     safeties = AverageMeter()
     margins = AverageMeter()
     margins_support = AverageMeter()
+    new_history = dict(returns=returns,
+                        safeties=safeties,
+                        margins=margins,
+                        margins_support=margins_support)
+    if include_loss:
+        new_history['loss'] = AverageMeter()
 
-    return dict(returns=returns,
-                safeties=safeties,
-                margins=margins,
-                margins_support=margins_support)
+    return new_history
 
 
 def track_metrics(ep, history, env, val=False):
@@ -82,6 +85,20 @@ def track_metrics(ep, history, env, val=False):
         history['margins_support'].update(margin)
 
     return history
+
+
+class ConfigWrapper(dict):
+    """Wraps a dictionary to allow for using __getattr__ in place of __getitem"""
+    def __init__(self, dictionary):
+        super(ConfigWrapper, self).__init__()
+        for k, v in dictionary.items():
+            self[k] = v
+        
+    def __getattribute__(self, attr):
+        try:
+            return self[attr]
+        except:
+            return super(ConfigWrapper, self).__getattribute__(attr)
 
 
 class ReplayBuffer(object):

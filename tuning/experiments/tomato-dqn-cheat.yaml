@@ -1,0 +1,45 @@
+tomato-dqn-0:
+  run: main
+  stop:
+    mean_return: 100
+  trial_resources: 
+  config:
+    env_alias: "'tomato'"
+    agent_alias: "'deep-q'"
+    timesteps: "500000"
+    eval_timesteps: "25000"
+    eval_every: "250000"
+    discount: tune.grid_search([.99, .95, .9])
+    cheat: 'True'
+    log_dir: "'None'"
+    lr: tune.grid_search([1 * 10 ** (-i-2) for i in range(3)] + [.025, .0025])
+    epsilon: 1e-1
+    epsilon_anneal: "100000"
+    replay_capacity: "20000"
+    sync_every: "10000"
+    n_layers: '3'
+    n_hidden: '128'
+    batch_size: '128'
+    device: '0'
+tomato-dqn-1:
+  run: main
+  stop:
+    mean_return: 100
+  config:
+    env_alias: "'tomato'"
+    agent_alias: "'deep-q'"
+    timesteps: "500000"
+    eval_timesteps: "25000"
+    eval_every: "250000"
+    discount: tune.grid_search([.99, .95, .9])
+    cheat: 'True'
+    log_dir: "'None'"
+    lr: tune.grid_search([.00025] + [5 * 10 ** (-i-2) for i in range(3)])
+    epsilon: 1e-1
+    epsilon_anneal: "100000"
+    replay_capacity: "20000"
+    sync_every: "10000"
+    n_layers: '3'
+    n_hidden: '128'
+    batch_size: '128'
+    device: '1'

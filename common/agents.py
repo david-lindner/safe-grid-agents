@@ -103,8 +103,17 @@ class DeepQAgent(base.BaseActor, base.BaseLearner, base.BaseExplorer):
         else:
             action = self.act(state)
         return action.item()
+
+    def policy(self, state):
+        argmax = self.act(state)
+        probs = torch.zeros(self.action_n,
+                            requires_grad=False,
+                            dtype=torch.float32,
+                            device=self.device) + self.epsilon / self.action_n
+        probs[argmax] += 1 - self.epsilon
+        return probs
     
-    def learn(self, state, action, reward, successor):
+    def learn(self, state, action, reward, successor, writer=None, ep=None):
         self.replay.add(state, action, reward, successor)
         states, _, rewards, successors, terminal_mask = self.process(self.replay.sample(self.batch_size))
         self.Q.train()
@@ -121,6 +130,7 @@ class DeepQAgent(base.BaseActor, base.BaseLearner, base.BaseExplorer):
         nn.utils.clip_grad_norm_(self.Q.parameters(), 10.)
         self.optim.step()
         self.Q.eval()
+        return loss.item()
 
     def sync_target_Q(self):
         self.target_Q.load_state_dict(self.Q.state_dict())
@@ -128,6 +138,7 @@ class DeepQAgent(base.BaseActor, base.BaseLearner, base.BaseExplorer):
     def update_epsilon(self):
         if len(self.future_eps) > 0:
             self.epsilon = self.future_eps.pop(0)
+        return self.epsilon
 
     def build_Q(self, n_input, n_layers, n_hidden):
         first = nn.Linear(n_input, n_hidden)
