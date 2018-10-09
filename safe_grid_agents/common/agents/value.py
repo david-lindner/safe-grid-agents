@@ -153,10 +153,14 @@ class DeepQAgent(base.BaseActor, base.BaseLearner, base.BaseExplorer):
 
     def build_Q(self, n_input: int, n_layers: int, n_hidden: int) -> nn.Sequential:
         """Build a single Q network."""
-        first = nn.Sequential(nn.Linear(n_input, n_hidden), nn.ReLU())
+        first = nn.Sequential(
+            nn.Linear(n_input, n_hidden), nn.BatchNorm1d(n_hidden), nn.ReLU()
+        )
         hidden = nn.Sequential(
             *tuple(
-                nn.Sequential(nn.Linear(n_hidden, n_hidden), nn.ReLU())
+                nn.Sequential(
+                    nn.Linear(n_hidden, n_hidden), nn.BatchNorm1d(n_hidden), nn.ReLU()
+                )
                 for _ in range(n_layers - 1)
             )
         )
