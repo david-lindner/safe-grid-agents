@@ -140,7 +140,6 @@ class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
             rollout.states.append(board.flatten())
             rollout.actions.append(action)
             rollout.rewards.append(reward)
-            history["returns"].update(sum(rollout.rewards))
 
             state = successor
 
