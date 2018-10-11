@@ -86,16 +86,13 @@ class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
 
         ratio = torch.exp(log_probs_curr - log_probs_old)
 
-        policy_loss = torch.min(
+        pi_loss = torch.min(
             -(adv * ratio).mean(),
             -(adv * ratio.clamp(1 - self.clipping, 1 + self.clipping)).mean(),
         )
-        loss = policy_loss + vf_loss
-        history["writer"].add_scalars(
-            "Train/loss",
-            {"policy_loss": policy_loss.item(), "value_loss": vf_loss.item()},
-            history["t"],
-        )
+        loss = pi_loss + vf_loss
+        history["writer"].add_scalar("Train/policy_loss", pi_loss.item(), history["t"])
+        history["writer"].add_scalar("Train/value_loss", vf_loss.item(), history["t"])
 
         self.optim.zero_grad()
         loss.backward()
