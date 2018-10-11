@@ -109,8 +109,6 @@ class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
                     history["writer"].add_histogram(
                         name, param.grad.clone().cpu().data.numpy(), history["t"]
                     )
-                else:
-                    print("no grad", name)
         self.optim.step()
 
         history["t"] += 1
