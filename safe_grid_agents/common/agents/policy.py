@@ -91,7 +91,7 @@ class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
             -(adv * ratio.clamp(1 - self.clipping, 1 + self.clipping)).mean(),
         )
         loss = pi_loss + vf_loss
-        history["writer"].add_scalar("Train/policy_loss", pi_loss.item(), history["t"])
+        history["writer"].add_scalar("Train/policy_loss", -pi_loss.item(), history["t"])
         history["writer"].add_scalar("Train/value_loss", vf_loss.item(), history["t"])
 
         self.optim.zero_grad()
