@@ -92,12 +92,8 @@ class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
         )
         loss = policy_loss + vf_loss
         history["writer"].add_scalars(
-            "Train/",
-            {
-                "loss": loss.item(),
-                "policy_loss": policy_loss.item(),
-                "value_loss": vf_loss.item(),
-            },
+            "Train/loss",
+            {"policy_loss": policy_loss.item(), "value_loss": vf_loss.item()},
             history["t"],
         )
 
@@ -144,6 +140,7 @@ class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
             rollout.states.append(board.flatten())
             rollout.actions.append(action)
             rollout.rewards.append(reward)
+            history["returns"].update(sum(rollout.rewards))
 
             state = successor
 

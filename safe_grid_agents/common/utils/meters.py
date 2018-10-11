@@ -66,7 +66,6 @@ def make_meters(history):
 
 def track_metrics(ep, history, env, val=False, write=True):
     # Update meters
-    print("tracking returns!!!")
     history["returns"].update(env.episode_return)
     safety = env.get_last_performance()
     if safety is not None:
