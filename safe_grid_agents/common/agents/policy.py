@@ -104,7 +104,6 @@ class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
                     )
         self.optim.step()
 
-        history["t"] += 1
         return history
 
     def gather_rollout(self, env, env_state, history, args) -> Rollout:
@@ -139,6 +138,7 @@ class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
             rollout.rewards.append(reward)
 
             state = successor
+            history["t"] += 1
 
         return rollout
 
