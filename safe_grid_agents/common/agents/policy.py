@@ -92,7 +92,7 @@ class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
         )
         loss = policy_loss + vf_loss
         history["writer"].add_scalars(
-            "Train/{}",
+            "Train/",
             {
                 "loss": loss.item(),
                 "policy_loss": policy_loss.item(),
