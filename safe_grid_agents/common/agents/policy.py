@@ -64,8 +64,8 @@ class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
         return Categorical(logits=prepolicy)
 
     def learn(self, states, actions, rewards, history, args) -> History:
-        states = torch.as_tensor(states, dtype=torch.float)
-        actions = torch.as_tensor(actions, dtype=torch.long)
+        states = torch.as_tensor(states, dtype=torch.float, device=self.device)
+        actions = torch.as_tensor(actions, dtype=torch.long, device=self.device)
 
         cumulative_returns = self.get_discounted_returns(rewards)
 
