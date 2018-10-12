@@ -44,7 +44,7 @@ class PPOCNNAgent(PPOBaseAgent):
             nn.ReLU(),
         )
         self.actor_linear = nn.Linear(
-            self.n_input * (self.n_channels + 1), int(self.action_n)
+            self.n_input * (self.n_channels), int(self.action_n)
         )
 
         self.critic_cnn = nn.Sequential(
@@ -53,7 +53,7 @@ class PPOCNNAgent(PPOBaseAgent):
             ),
             nn.ReLU(),
         )
-        self.critic_linear = nn.Linear(self.n_input * (self.n_channels + 1), 1)
+        self.critic_linear = nn.Linear(self.n_input * (self.n_channels), 1)
 
     def forward(self, x) -> Tuple[torch.Tensor, torch.Tensor]:
         x = torch.tensor(
@@ -65,17 +65,14 @@ class PPOCNNAgent(PPOBaseAgent):
         elif len(x.shape) == 3:
             x = x.unsqueeze(1)
 
-        convolutions = self.network(x)
-        x = x.reshape(x.shape[0], -1)
+        convolutions = self.network(x) + x
 
         actor = self.actor_cnn(convolutions)
         actor = actor.reshape(actor.shape[0], -1)
-        actor = torch.cat((actor, x), 1)
         actor = self.actor_linear(actor)
 
         critic = self.critic_cnn(convolutions)
         critic = critic.reshape(critic.shape[0], -1)
-        critic = torch.cat((critic, x), 1)
         critic = self.critic_linear(critic)
 
         return actor, critic
