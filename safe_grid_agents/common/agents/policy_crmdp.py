@@ -11,31 +11,32 @@ class PPOCRMDPAgent(PPOAgent):
 
     def __init__(self, env, args) -> None:
         super().__init__()
-        self.corrupt_states = dict()
-        self.safe_states = dict()
+        self.states = dict()
         self.d = lambda x, y: 3
         self.epsilon = 1e-3
         self.rllb = dict()
 
     def _mark_state_corrupt(self, board, reward) -> None:
-        board_str = board.tostring()
-        if board_str in self.non_corrupt_states:
-            self.non_corrupt_states.remove(board_str)
-        self.corrupt_states[board_str] = reward
+        self.states[board.tostring()] = [False, reward]
 
     def _mark_state_safe(self, board, reward) -> None:
-        self.safe_states[board.tostring()] = reward
+        self.states[board.tostring()] = [True, reward]
 
     def _is_state_corrupt(self, board) -> bool:
-        return board.tostring() in self.corrupt_states
+        if board.tostring() in self.states:
+            return self.states[board.tostring()][0]
+        else:
+            return False
 
-    def _iterate_safe_states(self) -> None:
-        for board_str, reward in self.safe_states:
-            yield np.fromstring(board_str), reward
+    def _iterate_safe_states(self) -> Generator[np.array, None, None]:
+        for board_str, reward in self.states:
+            if self.states[board_str][0]:
+                yield np.fromstring(self.states[board_str][1]), reward
 
     def _iterate_corrupt_states(self) -> Generator[np.array, None, None]:
-        for board_str, reward in self.corrupt_states:
-            yield np.fromstring(board_str), reward
+        for board_str, reward in self.states:
+            if not self.states[board_str][0]:
+                yield np.fromstring(self.states[board_str][1]), reward
 
     def _update_rllb(self) -> None:
         """Update the reward lower Lipschitz bound."""
@@ -71,27 +72,32 @@ class PPOCRMDPAgent(PPOAgent):
         that are being visited in this trajectory. Then updates the self.rllb
         dict, so that we can get the modified reward function.
         """
-        for board, reward in zip(boards, rewards):
-            if not self._is_state_corrupt(board):
-                self._mark_state_safe(board, reward)
+        trajectory_iterator = zip(boards, rewards)
 
         TLV = np.zeros(len(boards))
         for i in range(len(boards)):
-            TLV[i] = self._get_TLV(boards[i], reward[i], self._iterate_safe_states())
+            TLV[i] = self._get_TLV(boards[i], rewards[i], trajectory_iterator)
 
         TLV_sort_idx = np.argsort(TLV)[::-1]
+        added_corrupt_states = False
 
         # iterate over all states in the trajectory in order decreasing by their TLV
         for i in range(len(boards)):
             idx = TLV_sort_idx[i]
-            new_TLV = self._get_TLV(
-                boards[idx], reward[idx], self._iterate_safe_states()
-            )
+            if not added_corrupt_states:
+                # slight performance improvement
+                new_TLV = TLV[idx]
+            else:
+                new_TLV = self._get_TLV(boards[idx], rewards[idx], trajectory_iterator)
+
             if new_TLV <= self.epsilon:
                 break
             else:
                 self._mark_state_corrupt(boards[idx], rewards[idx])
-        self._update_rllb()
+                added_corrupt_states = True
+
+        if added_corrupt_states:
+            self._update_rllb()
 
     def gather_rollout(self, env, env_state, history, args) -> Rollout:
         # TODO: during rollout generation call self.identify_corruption_in_trajectory
