@@ -48,7 +48,9 @@ def default_eval(agent, env, eval_history, args):
 
     if len(episodes_to_show) > 0:
         animation_tensor = np.stack(episodes_to_show)
-        eval_history["writer"].add_video("Evaluation/grid_animation", animation_tensor)
+        eval_history["writer"].add_video(
+            "Evaluation/grid_animation", animation_tensor, eval_history["period"]
+        )
 
     eval_history = ut.track_metrics(eval_history["period"], eval_history, env, val=True)
     eval_history["returns"].reset(reset_history=True)
