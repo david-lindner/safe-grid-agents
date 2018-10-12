@@ -35,12 +35,16 @@ class PPOCRMDPAgent(PPOCNNAgent):
     def _iterate_safe_states(self) -> Generator[np.array, None, None]:
         for board_str in self.states.keys():
             if self.states[board_str][0]:
-                yield np.fromstring(self.states[board_str][1]), reward
+                board = np.fromstring(board_str, dtype=np.float32, count=self.n_input)
+                board = np.reshape(board, self.board_shape)
+                yield board, self.states[board_str][1]
 
     def _iterate_corrupt_states(self) -> Generator[np.array, None, None]:
         for board_str in self.states.keys():
             if not self.states[board_str][0]:
-                yield np.fromstring(self.states[board_str][1]), reward
+                board = np.fromstring(board_str, dtype=np.float32, count=self.n_input)
+                board = np.reshape(board, self.board_shape)
+                yield board, self.states[board_str][1]
 
     def _update_rllb(self) -> None:
         """Update the reward lower Lipschitz bound."""
