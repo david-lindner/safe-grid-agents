@@ -33,12 +33,12 @@ class PPOCRMDPAgent(PPOCNNAgent):
             return False
 
     def _iterate_safe_states(self) -> Generator[np.array, None, None]:
-        for board_str, reward in self.states:
+        for board_str in self.states.keys():
             if self.states[board_str][0]:
                 yield np.fromstring(self.states[board_str][1]), reward
 
     def _iterate_corrupt_states(self) -> Generator[np.array, None, None]:
-        for board_str, reward in self.states:
+        for board_str in self.states.keys():
             if not self.states[board_str][0]:
                 yield np.fromstring(self.states[board_str][1]), reward
 
