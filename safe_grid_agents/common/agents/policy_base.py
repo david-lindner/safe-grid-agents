@@ -3,6 +3,7 @@ from . import base
 from .. import utils as ut
 from ...types import History, Rollout
 
+import abc
 from typing import Tuple
 from copy import deepcopy
 import torch
@@ -10,8 +11,10 @@ import torch.nn as nn
 from torch.distributions import Categorical
 
 
-class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
+class PPOBaseAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
     """Actor-critic variant of PPO."""
+
+    __metaclass__ = abc.ABCMeta
 
     def __init__(self, env, args) -> None:
         super().__init__()
@@ -25,8 +28,6 @@ class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
         # Agent definition
         self.lr = args.lr
         self.batch_size = args.batch_size
-        self.n_layers = args.n_layers
-        self.n_hidden = args.n_hidden
         # self.horizon = args.horizon
         self.rollouts = args.rollouts
         self.epochs = args.epochs
@@ -43,13 +44,7 @@ class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
         self.old_policy.eval()
 
     def act(self, state) -> torch.Tensor:
-        state_board = torch.tensor(
-            state.flatten(),
-            requires_grad=False,
-            dtype=torch.float32,
-            device=self.device,
-        ).reshape(1, -1)
-        p, _ = self.forward(state_board)
+        p, _ = self(state)
         return p.argmax(-1)
 
     def act_explore(self, state) -> torch.Tensor:
@@ -57,13 +52,7 @@ class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
         return policy.sample().item()
 
     def policy(self, state) -> Categorical:
-        state_board = torch.tensor(
-            state.flatten(),
-            requires_grad=False,
-            dtype=torch.float32,
-            device=self.device,
-        ).reshape(1, -1)
-        prepolicy, _ = self(state_board)
+        prepolicy, _ = self(state)
         return Categorical(logits=prepolicy)
 
     def learn(self, states, actions, rewards, returns, history, args) -> History:
@@ -73,8 +62,8 @@ class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
 
         for epoch in range(self.epochs):
             rlsz = self.rollouts * states.size(1)
-            ixs = torch.randint(rlsz, size=(self.batch_size, 1), dtype=torch.long)
-            s = states.reshape(rlsz, -1)[ixs]
+            ixs = torch.randint(rlsz, size=(self.batch_size,), dtype=torch.long)
+            s = states.reshape(rlsz, states.shape[2], states.shape[3])[ixs]
             a = actions.reshape(rlsz, -1)[ixs]
             r = returns.reshape(rlsz, -1)[ixs]
 
@@ -150,7 +139,7 @@ class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
                         pass
 
                 # Store data from experience
-                boards.append(board.flatten())
+                boards.append(board)  # .flatten())
                 actions.append(action)
                 rewards.append(float(reward))
 
@@ -178,25 +167,6 @@ class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
         ]
         return cumulative_returns
 
-    def build_ac(self) -> None:
-        """Build the fused actor-critic architecture."""
-        first = nn.Sequential(nn.Linear(self.n_input, self.n_hidden), nn.ReLU())
-        hidden = nn.Sequential(
-            *tuple(
-                nn.Sequential(nn.Linear(self.n_hidden, self.n_hidden), nn.ReLU())
-                for _ in range(self.n_layers - 1)
-            )
-        )
-        self.network = nn.Sequential(first, hidden)
-        self.actor = nn.Linear(self.n_hidden, int(self.action_n))
-        self.critic = nn.Linear(self.n_hidden, 1)
-
-    def forward(self, x) -> Tuple[torch.Tensor, torch.Tensor]:
-        x = self.network(x)
-        actor = self.actor(x)
-        critic = self.critic(x)
-        return actor, critic
-
     def sync(self) -> None:
         """Sync old and current agent."""
         state_dict = self.state_dict()
@@ -204,3 +174,12 @@ class PPOAgent(nn.Module, base.BaseActor, base.BaseLearner, base.BaseExplorer):
             k: state_dict[k] for k in state_dict.keys() if k[:4] != "old_"
         }
         self.old_policy.load_state_dict(single_state_dict)
+
+    @abc.abstractmethod
+    def build_ac(self) -> None:
+        """Build the fused actor-critic architecture."""
+        return
+
+    @abc.abstractmethod
+    def forward(self, x) -> Tuple[torch.Tensor, torch.Tensor]:
+        return None, None
