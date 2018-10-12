@@ -99,11 +99,21 @@ ppo-mlp:
   device: *device
   log-gradients: *gradlog
 ppo-cnn:
-  n-channels:
+  n-channels: &n_channels
     alias: ch
     type: int
     default: 5
     help: "Number of channels for the convolutional layers (default: 5)"
+  lr: *learnrate
+  rollouts: *rollouts
+  epochs: *epochs
+  batch-size: *batchsize
+  clipping: *clipping
+  n-layers: *layers
+  device: *device
+  log-gradients: *gradlog
+ppo-crmdp:
+  n-channels: *n_channels
   lr: *learnrate
   rollouts: *rollouts
   epochs: *epochs

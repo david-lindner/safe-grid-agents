@@ -1,18 +1,22 @@
 """PPO Agent for CRMDPs."""
+import sys
 import numpy as np
 from typing import Generator
 
-from .policy import PPOAgent
+from .policy_cnn import PPOCNNAgent
 from ...types import Rollout
 
+sys.path.insert(0, "ai-safety-gridworlds/")
+from ai_safety_gridworlds.environments.tomato_watering_crmdp import REWARD_FACTOR
 
-class PPOCRMDPAgent(PPOAgent):
+
+class PPOCRMDPAgent(PPOCNNAgent):
     """PPO Agent for CRMDPs."""
 
     def __init__(self, env, args) -> None:
-        super().__init__()
+        super().__init__(env, args)
         self.states = dict()
-        self.d = lambda x, y: 3
+        self.d = lambda x, y: REWARD_FACTOR * np.sum(x != y)
         self.epsilon = 1e-3
         self.rllb = dict()
 
@@ -49,7 +53,7 @@ class PPOCRMDPAgent(PPOAgent):
                 bound = safe_reward - self.d(safe_board, corrupt_board)
                 if rllb is None or bound > rllb:
                     rllb = bound
-            self.rllb[corrupt_board] = rllb
+            self.rllb[corrupt_board.tostring()] = rllb
 
     def _get_TLV(self, boardX, rewardX, state_iterator) -> float:
         """Return the total Lipschitz violation of a state X w.r.t a set of states."""
@@ -85,7 +89,7 @@ class PPOCRMDPAgent(PPOAgent):
         for i in range(len(boards)):
             idx = TLV_sort_idx[i]
             if not added_corrupt_states:
-                # slight performance improvement
+                # performance improvement
                 new_TLV = TLV[idx]
             else:
                 new_TLV = self._get_TLV(boards[idx], rewards[idx], trajectory_iterator)
@@ -100,6 +104,16 @@ class PPOCRMDPAgent(PPOAgent):
             self._update_rllb()
 
     def gather_rollout(self, env, env_state, history, args) -> Rollout:
-        # TODO: during rollout generation call self.identify_corruption_in_trajectory
-        # TODO: then replace reward with self.get_modified_reward
-        super().gather_rollout(env, env_state, history, args)
+        """Gather a single rollout from an old policy."""
+        rollouts = super().gather_rollout(env, env_state, history, args)
+
+        for r in range(self.rollouts):
+            self.identify_corruption_in_trajectory(
+                rollouts.states[r], rollouts.rewards[r]
+            )
+            rollouts.rewards[r] = [
+                self.get_modified_reward(board, reward)
+                for board, reward in zip(rollouts.states[r], rollouts.rewards[r])
+            ]
+
+        return rollouts
